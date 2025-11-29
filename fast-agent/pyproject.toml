@@ -1,8 +1,0 @@
-[project]
-name = "velora-fast-agent"
-version = "0.1.0"
-description = "MCP Lab with FastAgent and Ollama"
-requires-python = ">=3.13.5"
-dependencies = [
-    "fast-agent-mcp"
-]

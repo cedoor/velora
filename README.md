@@ -1,102 +1,210 @@
-# Velora
+# 🚀 Velora
 
-Velora is a modular, local-first agentic brain — an Ollama-powered framework where models, tools, and memory connect through MCP (Model Context Protocol).
+<div align="center">
 
-It’s designed to search, reason, and evolve over time, with a plug-and-play architecture that grows based on needs.
+![Astro](https://astro.build/assets/press/astro-icon-light-gradient.svg)
 
-## Architecture
+[![Astro](https://img.shields.io/badge/Astro-0C1222?style=for-the-badge&logo=astro&logoColor=FDFDFE)](https://astro.build) [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org) [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com) [![Mastra](https://img.shields.io/badge/Mastra-000000?style=for-the-badge)](https://mastra.ai) [![Prompt Kit](https://img.shields.io/badge/Prompt%20Kit-FF6B6B?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiByeD0iNCIgZmlsbD0iI0ZGNjI2QiIvPgo8cGF0aCBkPSJNMTIgN2w0IDQgNCA0djEwYzAtNC40LTMuNi0zLjYtMy42LTMuNnoiIGZpbGw9IiMwMDAwMDAiLz4KPHBhdGggZD0iTTEyIDE3bC00LTRsNC00djhoIiBmaWxsPSIjMDAwMDAwIi8+Cjwvc3ZnPgo=)](https://prompt-kit.dev)
 
-```mermaid
-graph TB
-    subgraph "Client Layer"
-        A[Web Client<br/>React/Vite]
-    end
+</div>
 
-    subgraph "Agent Layer"
-        B[Fast Agent<br/>Python Application<br/>Port 8080]
-    end
+## 🌟 Overview
 
-    subgraph "MCP Layer"
-        C[MCP Server<br/>TypeScript<br/>File System Tools]
-    end
+Velora is a modern AI chatbot application built with Astro, React, and Mastra. It provides a beautiful, responsive chat interface powered by Mastra's agent and workflow system, enabling you to build sophisticated AI interactions with ease.
 
-    subgraph "AI Layer"
-        D[Ollama<br/>Mistral 12B Model<br/>Port 11434]
-    end
+The application features a production-ready UI with real-time streaming, conversation history, and a modular architecture that makes it easy to extend with custom agents and workflows.
 
-    subgraph "Data Layer"
-        E[Workspace<br/>File System<br/>Sandboxed Directory]
-    end
+## 🚀 Quick Start
 
-    A -->|HTTP Requests<br/>Chat Messages| B
-    B -->|MCP Protocol<br/>Tool Calls| C
-    B -->|API Calls<br/>LLM Requests| D
-    C -->|File Operations<br/>Read/Write| E
+1. **Install Dependencies**
 
-    style A fill:#e1f5fe
-    style B fill:#f3e5f5
-    style C fill:#e8f5e8
-    style D fill:#fff3e0
-    style E fill:#fce4ec
+   ```bash
+   pnpm install
+   ```
+
+2. **Development**
+
+   Start the Astro development server:
+
+   ```bash
+   pnpm dev
+   ```
+
+   Or start Mastra development mode:
+
+   ```bash
+   pnpm dev:mastra
+   ```
+
+3. **Build**
+
+   Build for production:
+
+   ```bash
+   pnpm build
+   ```
+
+   Build Mastra workflows:
+
+   ```bash
+   pnpm build:mastra
+   ```
+
+   Preview the production build:
+
+   ```bash
+   pnpm preview
+   ```
+
+## ⭐ Features
+
+- 🤖 **Mastra AI Framework** - Powerful agent and workflow system for building AI applications
+- 💬 **Real-time Streaming** - Token-by-token response streaming
+- 🧠 **AI Agents** - Customizable agents with memory and tool support
+- 🔄 **Workflows** - Multi-step workflows for complex AI operations
+- 💾 **Conversation History** - Persistent chat sessions with LibSQL storage
+- 🌙 **Dark/Light Mode** - Built-in theme switching
+- 📱 **Responsive Design** - Mobile-first approach
+- 🎨 **Beautiful UI** - Modern design with Tailwind CSS and Prompt Kit
+- ⚡ **Fast Performance** - Astro's static generation + React islands
+- 🔧 **TypeScript** - Full type safety
+- 🧩 **Modular Components** - Easy to customize and extend
+- 📊 **Observability** - Built-in tracing and logging with Pino
+
+## 📁 Project Structure
+
+```plaintext
+/
+├── public/              # Static assets
+├── src/
+│   ├── components/
+│   │   ├── Chatbot.tsx          # Main chat interface
+│   │   ├── ThemeToggle.tsx      # Theme switcher
+│   │   ├── prompt-kit/          # UI primitives
+│   │   │   ├── chat-container.tsx
+│   │   │   ├── message.tsx
+│   │   │   ├── prompt-input.tsx
+│   │   │   └── ...
+│   │   └── ui/                  # Shared UI components
+│   ├── lib/
+│   │   └── utils.ts             # Utility functions
+│   ├── mastra/                  # Mastra configuration
+│   │   ├── index.ts             # Mastra instance setup
+│   │   ├── agents/              # AI agents
+│   │   │   └── weather-agent.ts
+│   │   ├── workflows/           # Workflows
+│   │   │   └── weather-workflow.ts
+│   │   └── tools/               # Agent tools
+│   │       └── weather-tool.ts
+│   ├── mocks/                   # Mock implementations
+│   │   ├── ai-vercel-sdk.ts     # AI provider mocks
+│   │   └── supabase.ts          # Database mocks
+│   ├── pages/
+│   │   └── index.astro          # Main page
+│   └── styles/
+│       └── global.css           # Global styles + Tailwind
+├── astro.config.mjs     # Astro configuration
+└── package.json
 ```
 
-### Component Details
+## 🛠️ Customization
 
-- **Web Client**: React/Vite-based interface for user interaction with hot reload
-- **Fast Agent**: Python application that orchestrates MCP tools and LLM communication
-- **MCP Server**: TypeScript server providing file system tools with security sandboxing
-- **Ollama**: Local LLM server running Mistral 12B model
-- **Workspace**: Sandboxed directory for secure file operations
+### Adding New Agents
 
-## Prerequisites
+Create a new agent in `src/mastra/agents/`:
 
-- Python 3.8+
-- Node.js 16+
-- [uv](https://docs.astral.sh/uv/) for Python dependency management
-- [Ollama](https://ollama.ai/) installed and running
+```typescript
+import { Agent } from "@mastra/core/agent";
+import { Memory } from "@mastra/memory";
 
-## Quick Start
+export const myAgent = new Agent({
+  name: "My Agent",
+  instructions: "Your agent instructions here",
+  model: "mistral/mistral-medium-2508",
+  tools: {
+    /* your tools */
+  },
+  memory: new Memory({
+    /* memory config */
+  }),
+});
+```
 
-1. **Clone and setup:**
+Then register it in `src/mastra/index.ts`.
 
-   ```bash
-   git clone <repository-url>
-   cd velora
-   make setup
-   make ollama-pull
-   ```
+### Creating Workflows
 
-2. **Start the agent (in another terminal):**
+Define workflows in `src/mastra/workflows/`:
 
-   ```bash
-   make agent-serve
-   ```
+```typescript
+import { createStep, createWorkflow } from "@mastra/core/workflows";
+import { z } from "zod";
 
-3. **Start the client:**
+const myStep = createStep({
+  id: "my-step",
+  description: "Step description",
+  inputSchema: z.object({
+    /* input schema */
+  }),
+  outputSchema: z.object({
+    /* output schema */
+  }),
+  execute: async ({ inputData }) => {
+    // Your step logic
+  },
+});
 
-   ```bash
-   make client-serve
-   ```
+export const myWorkflow = createWorkflow({
+  id: "my-workflow",
+  inputSchema: z.object({
+    /* input schema */
+  }),
+  outputSchema: z.object({
+    /* output schema */
+  }),
+}).then(myStep);
 
-That's it! The client will be running on `http://localhost:5173` and the agent on `http://localhost:8080`.
+myWorkflow.commit();
+```
 
-## Available Commands
+### UI Components
 
-Run `make help` to see all available commands:
+- Modify `src/components/prompt-kit/` for core UI changes
+- Add custom components in `src/components/`
+- Customize themes in `src/styles/global.css`
 
-- `make setup` - Initial setup (installs all dependencies)
-- `make ollama-pull` - Download the required Ollama model
-- `make mcp-build` - Build the MCP server
-- `make agent-serve` - Start the agent server (builds MCP server first)
-- `make client-serve` - Start the web client in development mode
-- `make help` - Show all available commands
+## 🚀 Deployment
 
-## Development
+### Vercel (Recommended)
 
-The project uses:
+1. Push to GitHub
+2. Connect to Vercel
+3. Add environment variables (if needed)
+4. Deploy!
 
-- **uv** for Python dependency management
-- **npm** for Node.js dependencies
-- **Make** for common tasks
+### Other Platforms
 
-See `Makefile` for available commands.
+The application works with any static hosting service that supports Astro. For API routes, use Astro's API endpoints:
+
+```typescript
+// src/pages/api/chat.ts
+export async function POST({ request }) {
+  // Your AI logic here
+}
+```
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### Attribution
+
+This project is based on the [Astro AI Chatbot Template](https://github.com/Marve10s/Astro-Vercel-SDK-AI-Chatbot) by Marve10s, which is also licensed under the MIT License.
+
+---
+
+<div align="center">
+
+Made with ❤️ using [Astro](https://astro.build), [Mastra](https://mastra.ai), and [Prompt Kit](https://prompt-kit.dev)
+
+</div>
