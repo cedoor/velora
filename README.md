@@ -4,7 +4,7 @@
 
 ![Astro](https://astro.build/assets/press/astro-icon-light-gradient.svg)
 
-[![Astro](https://img.shields.io/badge/Astro-0C1222?style=for-the-badge&logo=astro&logoColor=FDFDFE)](https://astro.build) [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org) [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com) [![Mastra](https://img.shields.io/badge/Mastra-000000?style=for-the-badge)](https://mastra.ai) [![Prompt Kit](https://img.shields.io/badge/Prompt%20Kit-FF6B6B?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjI0IiBoZWlnaHQ9IjI0IiByeD0iNCIgZmlsbD0iI0ZGNjI2QiIvPgo8cGF0aCBkPSJNMTIgN2w0IDQgNCA0djEwYzAtNC40LTMuNi0zLjYtMy42LTMuNnoiIGZpbGw9IiMwMDAwMDAiLz4KPHBhdGggZD0iTTEyIDE3bC00LTRsNC00djhoIiBmaWxsPSIjMDAwMDAwIi8+Cjwvc3ZnPgo=)](https://prompt-kit.dev)
+[![Astro](https://img.shields.io/badge/Astro-0C1222?style=for-the-badge&logo=astro&logoColor=FDFDFE)](https://astro.build) [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org) [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com) [![Mastra](https://img.shields.io/badge/Mastra-000000?style=for-the-badge)](https://mastra.ai)
 
 </div>
 
@@ -65,7 +65,7 @@ The application features a production-ready UI with real-time streaming, convers
 - 💾 **Conversation History** - Persistent chat sessions with LibSQL storage
 - 🌙 **Dark/Light Mode** - Built-in theme switching
 - 📱 **Responsive Design** - Mobile-first approach
-- 🎨 **Beautiful UI** - Modern design with Tailwind CSS and Prompt Kit
+- 🎨 **Beautiful UI** - Modern design with Tailwind CSS
 - ⚡ **Fast Performance** - Astro's static generation + React islands
 - 🔧 **TypeScript** - Full type safety
 - 🧩 **Modular Components** - Easy to customize and extend
@@ -205,6 +205,6 @@ This project is based on the [Astro AI Chatbot Template](https://github.com/Marv
 
 <div align="center">
 
-Made with ❤️ using [Astro](https://astro.build), [Mastra](https://mastra.ai), and [Prompt Kit](https://prompt-kit.dev)
+Made with ❤️ using [Astro](https://astro.build) and [Mastra](https://mastra.ai)
 
 </div>
