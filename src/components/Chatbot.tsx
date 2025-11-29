@@ -36,6 +36,8 @@ import {
 } from "lucide-react";
 import { actions } from "astro:actions";
 import type { Agent } from "@/models/agent";
+import type { StorageThreadType } from "@mastra/core";
+import type { UIMessageWithMetadata } from "@mastra/core/agent";
 
 type Role = "user" | "assistant";
 
@@ -63,51 +65,83 @@ type HistoryGroup = {
   conversations: HistoryConversation[];
 };
 
-const historySeed: HistoryGroup[] = [
-  {
-    label: "Today",
-    conversations: [
-      {
-        id: "today-1",
-        title: "Product launch prep",
-        preview: "Drafted announcement copy and QA checklist for beta release.",
-        timestamp: "2h ago",
-      },
-      {
-        id: "today-2",
-        title: "Onboarding survey",
-        preview:
-          "Outlined questions that capture first-week friction and success signals.",
-        timestamp: "4h ago",
-      },
-      {
-        id: "today-3",
-        title: "Design critique notes",
-        preview: "Summarised feedback threads and grouped by priority / owner.",
-        timestamp: "6h ago",
-      },
-    ],
-  },
-  {
-    label: "Earlier this week",
-    conversations: [
-      {
-        id: "week-1",
-        title: "Support triage ideas",
-        preview:
-          "Generated macros for the top friction requests from this week.",
-        timestamp: "3 days ago",
-      },
-      {
-        id: "week-2",
-        title: "Growth experiment doc",
-        preview:
-          "Mapped out hypotheses, guardrail metrics, and rollout cadence.",
-        timestamp: "5 days ago",
-      },
-    ],
-  },
-];
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return "1 day ago";
+  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays < 30) {
+    const weeks = Math.floor(diffDays / 7);
+    return weeks === 1 ? "1 week ago" : `${weeks} weeks ago`;
+  }
+  const months = Math.floor(diffDays / 30);
+  return months === 1 ? "1 month ago" : `${months} months ago`;
+}
+
+function getDateGroupLabel(date: Date): string {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const threadDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  );
+  const diffDays = Math.floor(
+    (today.getTime() - threadDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return "Earlier this week";
+  if (diffDays < 30) return "Earlier this month";
+  return "Older";
+}
+
+function convertThreadsToHistoryGroups(
+  threads: StorageThreadType[]
+): HistoryGroup[] {
+  const groupsMap = new Map<string, HistoryConversation[]>();
+
+  threads.forEach((thread) => {
+    const label = getDateGroupLabel(thread.updatedAt);
+    const conversation: HistoryConversation = {
+      id: thread.id,
+      title: thread.title || "Untitled chat",
+      preview: "Say hello to Velora to get started.",
+      timestamp: formatRelativeTime(thread.updatedAt),
+    };
+
+    if (!groupsMap.has(label)) {
+      groupsMap.set(label, []);
+    }
+    groupsMap.get(label)!.push(conversation);
+  });
+
+  const orderedLabels = [
+    "Today",
+    "Yesterday",
+    "Earlier this week",
+    "Earlier this month",
+    "Older",
+  ];
+  const groups: HistoryGroup[] = [];
+
+  orderedLabels.forEach((label) => {
+    const conversations = groupsMap.get(label);
+    if (conversations && conversations.length > 0) {
+      groups.push({ label, conversations });
+    }
+  });
+
+  return groups;
+}
 
 function createId() {
   return Math.random().toString(36).slice(2, 10);
@@ -116,10 +150,10 @@ function createId() {
 const messageTemplates: MessageTemplate[] = [
   {
     role: "assistant",
-    name: "Nova",
-    avatarFallback: "NO",
+    name: "Velora",
+    avatarFallback: "VE",
     content:
-      "Hey there! I'm Nova, a prompt-kit powered assistant. Ask me anything about your product ideas, technical questions, or research tasks and I'll sketch out a plan you can wire up to your favourite model.",
+      "Hey there! I'm Velora, a prompt-kit powered assistant. Ask me anything about your product ideas, technical questions, or research tasks and I'll sketch out a plan you can wire up to your favourite model.",
   },
   {
     role: "user",
@@ -130,8 +164,8 @@ const messageTemplates: MessageTemplate[] = [
   },
   {
     role: "assistant",
-    name: "Nova",
-    avatarFallback: "NO",
+    name: "Velora",
+    avatarFallback: "VE",
     markdown: true,
     content: [
       "Absolutely — here's a structured outline you can use:",
@@ -182,8 +216,8 @@ function createPlaceholderConversation(
     {
       id: createId(),
       role: "assistant",
-      name: "Nova",
-      avatarFallback: "NO",
+      name: "Velora",
+      avatarFallback: "VE",
       markdown: true,
       content: [
         `This is a placeholder view for **${title}**.`,
@@ -205,75 +239,50 @@ function cloneHistoryGroups(groups: HistoryGroup[]): HistoryGroup[] {
   }));
 }
 
-function buildInitialConversationMap(
-  groups: HistoryGroup[]
-): Record<string, ConversationMessage[]> {
-  const map: Record<string, ConversationMessage[]> = {};
-  const primaryId = groups[0]?.conversations[0]?.id;
-
-  groups.forEach((section) => {
-    section.conversations.forEach((conversation) => {
-      if (conversation.id === primaryId) {
-        map[conversation.id] = createInitialMessages();
-      } else {
-        map[conversation.id] = createPlaceholderConversation(
-          conversation.title,
-          conversation.preview
-        );
-      }
-    });
-  });
-
-  return map;
-}
-
-function findConversationTitle(
-  groups: HistoryGroup[],
-  conversationId: string
-): string {
-  for (const section of groups) {
-    const conversation = section.conversations.find(
-      (entry) => entry.id === conversationId
-    );
-    if (conversation) {
-      return conversation.title;
-    }
-  }
-  return "Untitled chat";
-}
-
 function truncateText(text: string, limit = 80): string {
   if (text.length <= limit) return text;
   return `${text.slice(0, limit)}…`;
 }
 
-const seedActiveConversationId =
-  historySeed[0]?.conversations[0]?.id ?? createId();
-const seedActiveConversationTitle = findConversationTitle(
-  historySeed,
-  seedActiveConversationId
-);
+function convertUIMessageToConversationMessage(
+  uiMessage: UIMessageWithMetadata
+): ConversationMessage {
+  let content = "";
+
+  if (typeof uiMessage.content === "string") {
+    content = uiMessage.content;
+  } else if (Array.isArray(uiMessage.content)) {
+    const contentArray = uiMessage.content as Array<string | { text?: string }>;
+    content = contentArray
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if ("text" in part && part.text) return part.text;
+        return "";
+      })
+      .join("");
+  }
+
+  return {
+    id: uiMessage.id,
+    role: uiMessage.role === "user" ? "user" : "assistant",
+    name: uiMessage.role === "user" ? "You" : "Velora",
+    avatarFallback: uiMessage.role === "user" ? "YO" : "VE",
+    content,
+    markdown: uiMessage.role === "assistant",
+  };
+}
 
 function Chatbot() {
-  const [historyGroups, setHistoryGroups] = useState<HistoryGroup[]>(() =>
-    cloneHistoryGroups(historySeed)
-  );
+  const [historyGroups, setHistoryGroups] = useState<HistoryGroup[]>([]);
   const [conversations, setConversations] = useState<
     Record<string, ConversationMessage[]>
-  >(() => buildInitialConversationMap(historySeed));
-  const [activeConversationId, setActiveConversationId] = useState(
-    seedActiveConversationId
-  );
-  const [activeConversationTitle, setActiveConversationTitle] = useState(
-    seedActiveConversationTitle
-  );
-  const [chatCounter, setChatCounter] = useState(
-    () =>
-      historySeed.reduce(
-        (total, section) => total + section.conversations.length,
-        0
-      ) + 1
-  );
+  >({});
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
+  const [activeConversationTitle, setActiveConversationTitle] =
+    useState("Untitled chat");
+  const [chatCounter, setChatCounter] = useState(1);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
@@ -288,7 +297,8 @@ function Chatbot() {
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
 
   const messages = useMemo(
-    () => conversations[activeConversationId] ?? [],
+    () =>
+      activeConversationId ? (conversations[activeConversationId] ?? []) : [],
     [conversations, activeConversationId]
   );
 
@@ -305,6 +315,48 @@ function Chatbot() {
 
       setAgents(data);
       setSelectedAgent(data[0]);
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await actions.getThreads({});
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const groups = convertThreadsToHistoryGroups(data);
+        setHistoryGroups(groups);
+
+        const firstThread = data[0];
+        const firstThreadId = firstThread.id;
+        setActiveConversationId(firstThreadId);
+        setActiveConversationTitle(firstThread.title || "Untitled chat");
+
+        // Load messages for the first thread
+        const { data: messagesData, error: messagesError } =
+          await actions.getThreadMessages({ threadId: firstThreadId });
+
+        if (!messagesError && messagesData) {
+          const conversationMessages = messagesData.map(
+            convertUIMessageToConversationMessage
+          );
+          setConversations((prev) => ({
+            ...prev,
+            [firstThreadId]: conversationMessages,
+          }));
+        } else {
+          setConversations((prev) => ({
+            ...prev,
+            [firstThreadId]: [],
+          }));
+        }
+
+        setChatCounter(data.length + 1);
+      }
     })();
   }, []);
 
@@ -351,6 +403,10 @@ function Chatbot() {
   const handleSubmit = async () => {
     if (!hasPendingInput || isGenerating) return;
 
+    if (!activeConversationId) {
+      return;
+    }
+
     const conversationId = activeConversationId;
     const conversationTitle = activeConversationTitle;
     const prompt = input.trim();
@@ -367,23 +423,6 @@ function Chatbot() {
       content: prompt,
     };
 
-    const { data, error } = await actions.getWeatherInfo({ city: prompt });
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    const agentSummary = `${selectedAgent?.name}`;
-    const assistantMessage: ConversationMessage = {
-      id: createId(),
-      role: "assistant",
-      name: "Nova",
-      avatarFallback: "NO",
-      markdown: true,
-      content: data,
-    };
-
     updateConversationMessages(conversationId, (current) => [
       ...current,
       userMessage,
@@ -398,18 +437,71 @@ function Chatbot() {
     setCopiedMessageId(null);
     setIsGenerating(true);
 
-    window.setTimeout(() => {
-      updateConversationMessages(conversationId, (current) => [
-        ...current,
-        assistantMessage,
-      ]);
+    const { data, error } = await actions.getWeatherInfo({
+      message: prompt,
+      threadId: conversationId,
+    });
+
+    if (error) {
+      console.error(error);
       setIsGenerating(false);
-    }, 600);
+      return;
+    }
+
+    const assistantMessage: ConversationMessage = {
+      id: createId(),
+      role: "assistant",
+      name: "Velora",
+      avatarFallback: "VE",
+      markdown: true,
+      content: data,
+    };
+
+    updateConversationMessages(conversationId, (current) => [
+      ...current,
+      assistantMessage,
+    ]);
+    setIsGenerating(false);
+
+    // Reload messages from thread to get the actual saved messages
+    const { data: messagesData, error: messagesError } =
+      await actions.getThreadMessages({ threadId: conversationId });
+
+    if (!messagesError && messagesData) {
+      const conversationMessages = messagesData.map(
+        convertUIMessageToConversationMessage
+      );
+      setConversations((prev) => ({
+        ...prev,
+        [conversationId]: conversationMessages,
+      }));
+    }
   };
 
-  const handleNewChat = () => {
-    const conversationId = createId();
-    const conversationTitle = `Untitled chat ${chatCounter}`;
+  const handleNewChat = async () => {
+    const title = window.prompt(
+      "Enter chat title:",
+      `Untitled chat ${chatCounter}`
+    );
+
+    if (title === null) {
+      // User cancelled the prompt
+      return;
+    }
+
+    const finalTitle = title.trim() || `Untitled chat ${chatCounter}`;
+
+    const { data, error } = await actions.createThread({
+      title: finalTitle,
+    });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const conversationId = data.id;
+    const conversationTitle = data.title;
 
     setChatCounter((count) => count + 1);
     setConversations((previous) => ({
@@ -423,25 +515,20 @@ function Chatbot() {
     setIsGenerating(false);
     setIsSidebarOpen(false);
 
-    setHistoryGroups((previous) => {
-      const next = cloneHistoryGroups(previous);
-      if (next.length === 0) {
-        next.push({ label: "Today", conversations: [] });
-      }
-      next[0].conversations = [
-        {
-          id: conversationId,
-          title: conversationTitle,
-          preview: "Say hello to Nova to get started.",
-          timestamp: "Just now",
-        },
-        ...next[0].conversations,
-      ];
-      return next;
-    });
+    // Refetch threads to update history groups
+    const { data: threadsData, error: threadsError } = await actions.getThreads(
+      {}
+    );
+
+    if (!threadsError && threadsData) {
+      const groups = convertThreadsToHistoryGroups(threadsData);
+      setHistoryGroups(groups);
+    }
   };
 
-  const handleSelectConversation = (conversation: HistoryConversation) => {
+  const handleSelectConversation = async (
+    conversation: HistoryConversation
+  ) => {
     setActiveConversationId(conversation.id);
     setActiveConversationTitle(conversation.title);
     setIsSidebarOpen(false);
@@ -454,12 +541,30 @@ function Chatbot() {
         return previous;
       }
 
+      // Load messages for this thread
+      (async () => {
+        const { data: messagesData, error: messagesError } =
+          await actions.getThreadMessages({ threadId: conversation.id });
+
+        if (!messagesError && messagesData) {
+          const conversationMessages = messagesData.map(
+            convertUIMessageToConversationMessage
+          );
+          setConversations((prev) => ({
+            ...prev,
+            [conversation.id]: conversationMessages,
+          }));
+        } else {
+          setConversations((prev) => ({
+            ...prev,
+            [conversation.id]: [],
+          }));
+        }
+      })();
+
       return {
         ...previous,
-        [conversation.id]: createPlaceholderConversation(
-          conversation.title,
-          conversation.preview
-        ),
+        [conversation.id]: [],
       };
     });
 
@@ -594,10 +699,10 @@ function Chatbot() {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-                Nova
+                Velora
               </p>
               <h1 className="truncate text-lg font-semibold text-foreground sm:text-xl">
-                {activeConversationTitle}
+                {activeConversationTitle || "Untitled chat"}
               </h1>
               <p className="text-xs text-muted-foreground">
                 {selectedAgent?.name}

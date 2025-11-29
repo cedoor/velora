@@ -16,9 +16,8 @@ The application features a production-ready UI with real-time streaming, convers
 
 ## 📋 TODO
 
-- Create Astro actions for handling threads
-- Update UI to use those actions
 - Create custom agent with local Ollama model
+- Update UI to enable selection of multi-agents
 
 ## 🚀 Quick Start
 
