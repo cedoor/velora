@@ -19,7 +19,10 @@ export const weatherAgent = new Agent({
 
       Use the weatherTool to fetch current weather data.
 `,
-  model: "mistral/mistral-medium-2508",
+  model: {
+    id: "mistral/mistral-medium-2508",
+    apiKey: import.meta.env?.MISTRAL_API_KEY,
+  },
   tools: { weatherTool },
 
   memory: new Memory({

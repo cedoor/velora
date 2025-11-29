@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  type ChangeEvent,
-  type ClipboardEvent,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import {
@@ -33,27 +27,17 @@ import {
   ArrowUp,
   Check,
   Copy,
-  Image,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   Boxes,
-  Cpu,
   Plus,
-  ThumbsDown,
-  ThumbsUp,
   X,
 } from "lucide-react";
+import { actions } from "astro:actions";
+import type { Agent } from "@/models/agent";
 
 type Role = "user" | "assistant";
-
-type Attachment = {
-  id: string;
-  name: string;
-  type: string;
-  size: number;
-  preview: string;
-};
 
 type ConversationMessage = {
   id: string;
@@ -63,14 +47,9 @@ type ConversationMessage = {
   avatarUrl?: string;
   content: string;
   markdown?: boolean;
-  attachments?: Attachment[];
-  reaction?: "upvote" | "downvote" | null;
 };
 
-type MessageTemplate = Omit<
-  ConversationMessage,
-  "id" | "attachments" | "reaction"
->;
+type MessageTemplate = Omit<ConversationMessage, "id">;
 
 type HistoryConversation = {
   id: string;
@@ -83,48 +62,6 @@ type HistoryGroup = {
   label: string;
   conversations: HistoryConversation[];
 };
-
-type ProviderOption = {
-  id: string;
-  label: string;
-  models: { id: string; label: string }[];
-};
-
-const providers: ProviderOption[] = [
-  {
-    id: "openai",
-    label: "OpenAI",
-    models: [
-      { id: "gpt-4o", label: "GPT-4o" },
-      { id: "gpt-4o-mini", label: "GPT-4o mini" },
-      { id: "o3-mini", label: "O3 mini" },
-    ],
-  },
-  {
-    id: "anthropic",
-    label: "Anthropic",
-    models: [
-      { id: "claude-3.7-sonnet", label: "Claude 3.7 Sonnet" },
-      { id: "claude-3.5-haiku", label: "Claude 3.5 Haiku" },
-    ],
-  },
-  {
-    id: "google",
-    label: "Google Gemini",
-    models: [
-      { id: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
-      { id: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
-    ],
-  },
-  {
-    id: "groq",
-    label: "Groq",
-    models: [
-      { id: "llama-3.1-70b", label: "Llama 3.1 70B" },
-      { id: "mixtral-8x7b", label: "Mixtral 8x7B" },
-    ],
-  },
-];
 
 const historySeed: HistoryGroup[] = [
   {
@@ -215,8 +152,6 @@ function createInitialMessages(): ConversationMessage[] {
   return messageTemplates.map((template) => ({
     ...template,
     id: createId(),
-    attachments: template.role === "user" ? [] : undefined,
-    reaction: null,
   }));
 }
 
@@ -250,7 +185,6 @@ function createPlaceholderConversation(
       name: "Nova",
       avatarFallback: "NO",
       markdown: true,
-      reaction: null,
       content: [
         `This is a placeholder view for **${title}**.`,
         "",
@@ -313,46 +247,6 @@ function truncateText(text: string, limit = 80): string {
   return `${text.slice(0, limit)}…`;
 }
 
-function formatFileSize(size: number): string {
-  if (size < 1024) return `${size} B`;
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function promoteConversation(
-  groups: HistoryGroup[],
-  conversationId: string,
-  updater: (existing: HistoryConversation | null) => HistoryConversation
-): HistoryGroup[] {
-  const next = cloneHistoryGroups(groups);
-  let existing: HistoryConversation | null = null;
-
-  for (const section of next) {
-    const index = section.conversations.findIndex(
-      (conversation) => conversation.id === conversationId
-    );
-    if (index !== -1) {
-      existing = section.conversations.splice(index, 1)[0];
-      break;
-    }
-  }
-
-  const updated = updater(existing);
-
-  if (next.length === 0) {
-    next.push({ label: "Today", conversations: [] });
-  }
-
-  next[0].conversations = [
-    updated,
-    ...next[0].conversations.filter(
-      (conversation) => conversation.id !== updated.id
-    ),
-  ];
-
-  return next;
-}
-
 const seedActiveConversationId =
   historySeed[0]?.conversations[0]?.id ?? createId();
 const seedActiveConversationTitle = findConversationTitle(
@@ -380,45 +274,39 @@ function Chatbot() {
         0
       ) + 1
   );
-  const [composerAttachments, setComposerAttachments] = useState<Attachment[]>(
-    []
-  );
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedProviderId, setSelectedProviderId] = useState(providers[0].id);
-  const [selectedModelId, setSelectedModelId] = useState(
-    providers[0].models[0].id
-  );
+
+  const [agents, setAgents] = useState<Agent[]>([]);
+
+  const [selectedAgent, setSelectedAgent] = useState<Agent>();
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isProviderMenuOpen, setIsProviderMenuOpen] = useState(false);
-  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
 
-  const activeProvider =
-    providers.find((provider) => provider.id === selectedProviderId) ??
-    providers[0];
-  const activeModel =
-    activeProvider.models.find((model) => model.id === selectedModelId) ??
-    activeProvider.models[0];
+  const [isAgentMenuOpen, setIsAgentMenuOpen] = useState(false);
 
   const messages = useMemo(
     () => conversations[activeConversationId] ?? [],
     [conversations, activeConversationId]
   );
 
-  const hasPendingInput =
-    input.trim().length > 0 || composerAttachments.length > 0;
+  const hasPendingInput = input.trim().length > 0;
 
   useEffect(() => {
-    const provider =
-      providers.find((item) => item.id === selectedProviderId) ?? providers[0];
-    setSelectedModelId((current) =>
-      provider.models.some((model) => model.id === current)
-        ? current
-        : provider.models[0].id
-    );
-  }, [selectedProviderId]);
+    (async () => {
+      const { data, error } = await actions.getAgents();
+
+      if (error) {
+        console.error(error);
+        return;
+      }
+
+      setAgents(data);
+      setSelectedAgent(data[0]);
+    })();
+  }, []);
 
   const updateConversationMessages = (
     conversationId: string,
@@ -446,50 +334,6 @@ function Chatbot() {
     );
   };
 
-  const addAttachmentFromFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") return;
-      setComposerAttachments((previous) => [
-        ...previous,
-        {
-          id: createId(),
-          name: file.name || `pasted-image-${previous.length + 1}.png`,
-          type: file.type,
-          size: file.size,
-          preview: reader.result,
-        },
-      ]);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handlePasteImages = (event: ClipboardEvent<HTMLTextAreaElement>) => {
-    const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
-      file.type.startsWith("image/")
-    );
-    if (files.length === 0) return;
-
-    event.preventDefault();
-    files.forEach(addAttachmentFromFile);
-  };
-
-  const handleImageUpload = (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []).filter((file) =>
-      file.type.startsWith("image/")
-    );
-    if (files.length === 0) return;
-
-    files.forEach(addAttachmentFromFile);
-    event.target.value = "";
-  };
-
-  const handleRemoveAttachment = (attachmentId: string) => {
-    setComposerAttachments((previous) =>
-      previous.filter((attachment) => attachment.id !== attachmentId)
-    );
-  };
-
   const handleCopy = async (message: ConversationMessage) => {
     try {
       await navigator.clipboard.writeText(message.content);
@@ -504,66 +348,40 @@ function Chatbot() {
     }
   };
 
-  const toggleReaction = (
-    messageId: string,
-    reaction: "upvote" | "downvote"
-  ) => {
-    const conversationId = activeConversationId;
-    updateConversationMessages(conversationId, (current) =>
-      current.map((message) =>
-        message.id === messageId
-          ? {
-              ...message,
-              reaction: message.reaction === reaction ? null : reaction,
-            }
-          : message
-      )
-    );
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!hasPendingInput || isGenerating) return;
 
     const conversationId = activeConversationId;
     const conversationTitle = activeConversationTitle;
     const prompt = input.trim();
-    const attachments = composerAttachments.map((attachment) => ({
-      ...attachment,
-    }));
-    const attachmentsSummary =
-      attachments.length > 0
-        ? `Shared ${attachments.length} attachment${attachments.length > 1 ? "s" : ""}`
-        : undefined;
 
-    const userContent = prompt || attachmentsSummary || "Sent a message";
+    if (!prompt) {
+      return;
+    }
 
     const userMessage: ConversationMessage = {
       id: createId(),
       role: "user",
       name: "You",
       avatarFallback: "YO",
-      content: userContent,
-      attachments: attachments.length ? attachments : undefined,
-      reaction: null,
+      content: prompt,
     };
 
-    const providerSummary = `${activeProvider.label} • ${activeModel.label}`;
+    const { data, error } = await actions.getWeatherInfo({ city: prompt });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const agentSummary = `${selectedAgent?.name}`;
     const assistantMessage: ConversationMessage = {
       id: createId(),
       role: "assistant",
       name: "Nova",
       avatarFallback: "NO",
       markdown: true,
-      reaction: null,
-      content: [
-        `Pretending to call ${providerSummary}.`,
-        attachments.length
-          ? `I spotted ${attachments.length} attachment${attachments.length > 1 ? "s" : ""}. Replace this with your vision/tool call.`
-          : undefined,
-        "Swap this helper with your real API handler and stream tokens into the conversation.",
-      ]
-        .filter(Boolean)
-        .join("\n\n"),
+      content: data,
     };
 
     updateConversationMessages(conversationId, (current) => [
@@ -572,11 +390,10 @@ function Chatbot() {
     ]);
     refreshHistoryPreview(
       conversationId,
-      prompt || attachmentsSummary || "Sent a message",
+      prompt || "Sent a message",
       conversationTitle
     );
 
-    setComposerAttachments([]);
     setInput("");
     setCopiedMessageId(null);
     setIsGenerating(true);
@@ -601,7 +418,6 @@ function Chatbot() {
     }));
     setActiveConversationId(conversationId);
     setActiveConversationTitle(conversationTitle);
-    setComposerAttachments([]);
     setInput("");
     setCopiedMessageId(null);
     setIsGenerating(false);
@@ -629,7 +445,6 @@ function Chatbot() {
     setActiveConversationId(conversation.id);
     setActiveConversationTitle(conversation.title);
     setIsSidebarOpen(false);
-    setComposerAttachments([]);
     setInput("");
     setCopiedMessageId(null);
     setIsGenerating(false);
@@ -785,7 +600,7 @@ function Chatbot() {
                 {activeConversationTitle}
               </h1>
               <p className="text-xs text-muted-foreground">
-                {activeProvider.label} · {activeModel.label}
+                {selectedAgent?.name}
               </p>
             </div>
           </div>
@@ -831,32 +646,6 @@ function Chatbot() {
                             {message.content}
                           </MessageContent>
 
-                          {message.attachments &&
-                          message.attachments.length > 0 ? (
-                            <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                              {message.attachments.map((attachment) => (
-                                <figure
-                                  key={attachment.id}
-                                  className="overflow-hidden rounded-xl border border-border bg-background/40"
-                                >
-                                  <img
-                                    src={attachment.preview}
-                                    alt={attachment.name}
-                                    className="h-32 w-full object-cover"
-                                  />
-                                  <figcaption className="flex items-center justify-between truncate px-3 py-2 text-xs text-muted-foreground">
-                                    <span className="truncate">
-                                      {attachment.name}
-                                    </span>
-                                    <span className="shrink-0 pl-2">
-                                      {formatFileSize(attachment.size)}
-                                    </span>
-                                  </figcaption>
-                                </figure>
-                              ))}
-                            </div>
-                          ) : null}
-
                           {!isUser ? (
                             <MessageActions
                               className={cn(
@@ -898,60 +687,6 @@ function Chatbot() {
                                   )}
                                 </Button>
                               </MessageAction>
-                              <MessageAction
-                                tooltip={
-                                  message.reaction === "upvote"
-                                    ? "Remove like"
-                                    : "Mark response as helpful"
-                                }
-                                delayDuration={100}
-                              >
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    "rounded-full",
-                                    message.reaction === "upvote" &&
-                                      "bg-primary/10 text-primary"
-                                  )}
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    toggleReaction(message.id, "upvote");
-                                  }}
-                                  aria-pressed={message.reaction === "upvote"}
-                                  aria-label="Mark response as helpful"
-                                >
-                                  <ThumbsUp className="h-4 w-4" />
-                                </Button>
-                              </MessageAction>
-                              <MessageAction
-                                tooltip={
-                                  message.reaction === "downvote"
-                                    ? "Remove dislike"
-                                    : "Mark response as not helpful"
-                                }
-                                delayDuration={100}
-                              >
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={cn(
-                                    "rounded-full",
-                                    message.reaction === "downvote" &&
-                                      "bg-destructive/10 text-destructive"
-                                  )}
-                                  onClick={(event) => {
-                                    event.preventDefault();
-                                    event.stopPropagation();
-                                    toggleReaction(message.id, "downvote");
-                                  }}
-                                  aria-pressed={message.reaction === "downvote"}
-                                  aria-label="Mark response as not helpful"
-                                >
-                                  <ThumbsDown className="h-4 w-4" />
-                                </Button>
-                              </MessageAction>
                             </MessageActions>
                           ) : null}
                         </div>
@@ -977,161 +712,44 @@ function Chatbot() {
             disabled={isGenerating}
           >
             <div className="flex flex-col gap-3">
-              {composerAttachments.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-                    Attachments
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    {composerAttachments.map((attachment) => (
-                      <div
-                        key={attachment.id}
-                        className="relative h-24 w-24 overflow-hidden rounded-xl border border-border bg-muted/40"
-                      >
-                        <img
-                          src={attachment.preview}
-                          alt={attachment.name}
-                          className="h-full w-full object-cover"
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white transition hover:bg-black"
-                          onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            handleRemoveAttachment(attachment.id);
-                          }}
-                          aria-label={`Remove ${attachment.name}`}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                        <div className="absolute inset-x-0 bottom-0 bg-black/60 px-2 py-1 text-[10px] text-white">
-                          <span className="block truncate">
-                            {attachment.name}
-                          </span>
-                          <span className="opacity-70">
-                            {formatFileSize(attachment.size)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <PromptInputTextarea
-                aria-label="Message"
-                placeholder="Message"
-                onPaste={handlePasteImages}
-              />
+              <PromptInputTextarea aria-label="Message" placeholder="Message" />
 
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <PromptInputAction
-                    tooltip="Paste or upload an image"
-                    side="top"
-                  >
-                    <Button
-                      asChild
-                      variant="ghost"
-                      size="icon"
-                      className="rounded-full"
-                    >
-                      <label className="flex cursor-pointer items-center justify-center">
-                        <Image className="h-5 w-5" />
-                        <span className="sr-only">Attach image</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="sr-only"
-                          onChange={handleImageUpload}
-                        />
-                      </label>
-                    </Button>
-                  </PromptInputAction>
-
                   <div className="relative">
-                    <PromptInputAction tooltip="Select provider" side="top">
+                    <PromptInputAction tooltip="Select agent" side="top">
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         className="rounded-full"
                         aria-haspopup="listbox"
-                        aria-expanded={isProviderMenuOpen}
+                        aria-expanded={isAgentMenuOpen}
                         onClick={() => {
-                          setIsProviderMenuOpen((v) => !v);
-                          setIsModelMenuOpen(false);
+                          setIsAgentMenuOpen((v) => !v);
                         }}
                       >
                         <Boxes className="h-5 w-5" />
                       </Button>
                     </PromptInputAction>
-                    {isProviderMenuOpen ? (
+                    {isAgentMenuOpen ? (
                       <div className="absolute bottom-10 left-0 z-10 w-44 rounded-lg border border-border bg-card p-1 shadow-md">
-                        {providers.map((provider) => (
+                        {agents.map((agent) => (
                           <button
-                            key={provider.id}
+                            key={agent.name}
                             type="button"
                             className={cn(
                               "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent/60",
-                              selectedProviderId === provider.id &&
-                                "bg-accent/40"
+                              selectedAgent?.id === agent.id && "bg-accent/40"
                             )}
                             role="option"
-                            aria-selected={selectedProviderId === provider.id}
+                            aria-selected={selectedAgent?.id === agent.id}
                             onClick={() => {
-                              setSelectedProviderId(provider.id);
-                              setIsProviderMenuOpen(false);
+                              setSelectedAgent(agent);
                             }}
                           >
-                            <span className="truncate">{provider.label}</span>
-                            {selectedProviderId === provider.id ? (
-                              <Check className="h-4 w-4" />
-                            ) : null}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="relative">
-                    <PromptInputAction tooltip="Select model" side="top">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="rounded-full"
-                        aria-haspopup="listbox"
-                        aria-expanded={isModelMenuOpen}
-                        onClick={() => {
-                          setIsModelMenuOpen((v) => !v);
-                          setIsProviderMenuOpen(false);
-                        }}
-                      >
-                        <Cpu className="h-5 w-5" />
-                      </Button>
-                    </PromptInputAction>
-                    {isModelMenuOpen ? (
-                      <div className="absolute bottom-10 left-0 z-10 w-44 rounded-lg border border-border bg-card p-1 shadow-md">
-                        {activeProvider.models.map((model) => (
-                          <button
-                            key={model.id}
-                            type="button"
-                            className={cn(
-                              "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-accent/60",
-                              selectedModelId === model.id && "bg-accent/40"
-                            )}
-                            role="option"
-                            aria-selected={selectedModelId === model.id}
-                            onClick={() => {
-                              setSelectedModelId(model.id);
-                              setIsModelMenuOpen(false);
-                            }}
-                          >
-                            <span className="truncate">{model.label}</span>
-                            {selectedModelId === model.id ? (
+                            <span className="truncate">{agent.name}</span>
+                            {selectedAgent?.id === agent.id ? (
                               <Check className="h-4 w-4" />
                             ) : null}
                           </button>

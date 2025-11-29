@@ -14,6 +14,12 @@ Velora is a modern AI chatbot application built with Astro, React, and Mastra. I
 
 The application features a production-ready UI with real-time streaming, conversation history, and a modular architecture that makes it easy to extend with custom agents and workflows.
 
+## 📋 TODO
+
+- Create Astro actions for handling threads
+- Update UI to use those actions
+- Create custom agent with local Ollama model
+
 ## 🚀 Quick Start
 
 1. **Install Dependencies**
@@ -96,9 +102,6 @@ The application features a production-ready UI with real-time streaming, convers
 │   │   │   └── weather-workflow.ts
 │   │   └── tools/               # Agent tools
 │   │       └── weather-tool.ts
-│   ├── mocks/                   # Mock implementations
-│   │   ├── ai-vercel-sdk.ts     # AI provider mocks
-│   │   └── supabase.ts          # Database mocks
 │   ├── pages/
 │   │   └── index.astro          # Main page
 │   └── styles/
@@ -165,32 +168,6 @@ export const myWorkflow = createWorkflow({
 }).then(myStep);
 
 myWorkflow.commit();
-```
-
-### UI Components
-
-- Modify `src/components/prompt-kit/` for core UI changes
-- Add custom components in `src/components/`
-- Customize themes in `src/styles/global.css`
-
-## 🚀 Deployment
-
-### Vercel (Recommended)
-
-1. Push to GitHub
-2. Connect to Vercel
-3. Add environment variables (if needed)
-4. Deploy!
-
-### Other Platforms
-
-The application works with any static hosting service that supports Astro. For API routes, use Astro's API endpoints:
-
-```typescript
-// src/pages/api/chat.ts
-export async function POST({ request }) {
-  // Your AI logic here
-}
 ```
 
 ## 📄 License
