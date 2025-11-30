@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "mastra": {
+      "command": "npx",
+      "args": ["-y", "@mastra/mcp-docs-server"]
+    },
+    "Astro docs server": {
+      "url": "https://mcp.docs.astro.build/mcp",
+      "headers": {}
+    }
+  }
+}
