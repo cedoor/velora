@@ -65,6 +65,26 @@ type HistoryGroup = {
   conversations: HistoryConversation[];
 };
 
+const HISTORY_GROUP_LABELS = [
+  "Today",
+  "Yesterday",
+  "Earlier this week",
+  "Earlier this month",
+  "Older",
+] as const;
+
+function orderHistoryGroups(groups: HistoryGroup[]): HistoryGroup[] {
+  const groupMap = new Map(groups.map((group) => [group.label, group]));
+
+  return HISTORY_GROUP_LABELS.reduce<HistoryGroup[]>((ordered, label) => {
+    const group = groupMap.get(label);
+    if (group && group.conversations.length > 0) {
+      ordered.push(group);
+    }
+    return ordered;
+  }, []);
+}
+
 function formatRelativeTime(date: Date): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
@@ -110,12 +130,15 @@ function convertThreadsToHistoryGroups(
   const groupsMap = new Map<string, HistoryConversation[]>();
 
   threads.forEach((thread) => {
-    const label = getDateGroupLabel(thread.updatedAt);
+    const updatedAt = new Date(
+      thread.updatedAt ?? thread.createdAt ?? Date.now()
+    );
+    const label = getDateGroupLabel(updatedAt);
     const conversation: HistoryConversation = {
       id: thread.id,
       title: thread.title || "Untitled chat",
       preview: "Say hello to Velora to get started.",
-      timestamp: formatRelativeTime(thread.updatedAt),
+      timestamp: formatRelativeTime(updatedAt),
     };
 
     if (!groupsMap.has(label)) {
@@ -124,23 +147,14 @@ function convertThreadsToHistoryGroups(
     groupsMap.get(label)!.push(conversation);
   });
 
-  const orderedLabels = [
-    "Today",
-    "Yesterday",
-    "Earlier this week",
-    "Earlier this month",
-    "Older",
-  ];
-  const groups: HistoryGroup[] = [];
+  const unorderedGroups: HistoryGroup[] = Array.from(groupsMap.entries()).map(
+    ([label, conversations]) => ({
+      label,
+      conversations,
+    })
+  );
 
-  orderedLabels.forEach((label) => {
-    const conversations = groupsMap.get(label);
-    if (conversations && conversations.length > 0) {
-      groups.push({ label, conversations });
-    }
-  });
-
-  return groups;
+  return orderHistoryGroups(unorderedGroups);
 }
 
 function createId() {
@@ -376,14 +390,59 @@ function Chatbot() {
     preview: string,
     title?: string
   ) => {
-    setHistoryGroups((previous) =>
-      updateConversationInGroups(previous, conversationId, (existing) => ({
-        id: existing.id,
-        title: title ?? existing.title,
-        preview: truncateText(preview),
-        timestamp: "Just now",
-      }))
-    );
+    const nextPreview = truncateText(preview || "Sent a message");
+    const targetLabel = getDateGroupLabel(new Date());
+
+    setHistoryGroups((previous) => {
+      const cloned = cloneHistoryGroups(previous);
+      let updatedConversation: HistoryConversation | null = null;
+
+      for (const section of cloned) {
+        const index = section.conversations.findIndex(
+          (conversation) => conversation.id === conversationId
+        );
+
+        if (index !== -1) {
+          const existing = section.conversations[index];
+          updatedConversation = {
+            id: existing.id,
+            title: title ?? existing.title,
+            preview: nextPreview,
+            timestamp: "Just now",
+          };
+          section.conversations.splice(index, 1);
+          break;
+        }
+      }
+
+      if (!updatedConversation) {
+        updatedConversation = {
+          id: conversationId,
+          title: title ?? "Untitled chat",
+          preview: nextPreview,
+          timestamp: "Just now",
+        };
+      }
+
+      let targetGroup = cloned.find((group) => group.label === targetLabel);
+      if (!targetGroup) {
+        targetGroup = { label: targetLabel, conversations: [] };
+        cloned.push(targetGroup);
+      }
+
+      targetGroup.conversations = [
+        updatedConversation,
+        ...targetGroup.conversations.filter(
+          (conversation) => conversation.id !== conversationId
+        ),
+      ];
+
+      const filtered = cloned.filter(
+        (group) => group.conversations.length > 0
+      );
+
+      return orderHistoryGroups(filtered);
+    });
   };
 
   const handleCopy = async (message: ConversationMessage) => {

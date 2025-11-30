@@ -131,14 +131,16 @@ function PromptInputTextarea({
 
     const textarea = textareaRef.current;
 
-    if (textarea.scrollTop === 0) {
-      textarea.style.height = "auto";
-    }
+    textarea.style.height = "auto";
 
-    textarea.style.height =
-      typeof maxHeight === "number"
-        ? `${Math.min(textarea.scrollHeight, maxHeight)}px`
-        : `min(${textarea.scrollHeight}px, ${maxHeight})`;
+    if (typeof maxHeight === "number") {
+      const nextHeight = Math.min(textarea.scrollHeight, maxHeight);
+      textarea.style.height = `${nextHeight}px`;
+      textarea.style.overflowY =
+        textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+    } else {
+      textarea.style.height = `min(${textarea.scrollHeight}px, ${maxHeight})`;
+    }
   }, [disableAutosize, maxHeight, textareaRef, value]);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
